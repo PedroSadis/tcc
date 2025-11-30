@@ -98,4 +98,4 @@ O sistema utiliza **SQLite3** com as seguintes tabelas principais:
 
 ## 📝 Autor
 
-Desenvolvido por **Pedro Ugusto Vessoni Bastos e Gustavo Henrique Gomes dos Santos** para o Trabalho de Conclusão de Curso.
+Desenvolvido por **Pedro Augusto Vessoni Bastos e Gustavo Henrique Gomes dos Santos** para o Trabalho de Conclusão de Curso.
