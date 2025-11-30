@@ -32,7 +32,28 @@ document.addEventListener('DOMContentLoaded', () => {
     const relatorioEntregasContent = document.getElementById('relatorio_entregas_content');
     const rhSolicitacoesPendentes = document.getElementById('rh_solicitacoes_pendentes');
     const rhSolicitacaoStatus = document.getElementById('rh-solicitacao-status');
+    
+    // NOVOS ELEMENTOS NECESSÁRIOS PARA AS CORREÇÕES
+    const regCargo = document.getElementById('reg_cargo');
+    const regDepartamento = document.getElementById('reg_departamento');
 
+    // Cria e insere a área de notificação no topo da área do funcionário
+    const notificacaoArea = document.createElement('div');
+    notificacaoArea.id = 'notificacao-area';
+    notificacaoArea.style.marginBottom = '20px';
+    notificacaoArea.style.padding = '15px';
+    notificacaoArea.style.backgroundColor = 'var(--cor-aviso)';
+    notificacaoArea.style.borderRadius = 'var(--radius)';
+    notificacaoArea.style.display = 'none'; 
+
+    if (funcionarioArea) {
+        const h3Ponto = funcionarioArea.querySelector('h3');
+        if (h3Ponto) {
+            // Insere a área de notificação logo abaixo do h2 "Registrar Ponto"
+            h3Ponto.parentNode.insertBefore(notificacaoArea, h3Ponto);
+        }
+    }
+    // FIM NOVOS ELEMENTOS
 
     // --- Gerenciamento de Autenticação ---
 
@@ -43,25 +64,23 @@ document.addEventListener('DOMContentLoaded', () => {
             
             const email = document.getElementById('email').value;
             const senha = document.getElementById('senha').value;
-            // DE VOLTA: Pegamos o 'tipo' da caixa de seleção
             const tipo = document.getElementById('tipo').value; 
 
             try {
                 const response = await fetch(`${API_URL}/login`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    // DE VOLTA: Enviamos o 'tipo' para o backend
                     body: JSON.stringify({ email: email, senha: senha, tipo: tipo }) 
                 });
                 const data = await response.json();
                 if (!response.ok) { throw new Error(data.message); }
 
+                // LOGADO COM SUCESSO: Armazena dados essenciais
                 localStorage.setItem('token', data.token);
                 localStorage.setItem('user', JSON.stringify(data.user));
-                // O 'tipo' agora vem do que selecionámos
                 localStorage.setItem('userType', tipo); 
 
-                showAppView(tipo, data.user); // Usamos o 'tipo' que enviámos
+                showAppView(tipo, data.user); 
             } catch (error) {
                 loginError.textContent = `Erro: ${error.message}`;
             }
@@ -86,18 +105,19 @@ document.addEventListener('DOMContentLoaded', () => {
             funcionarioArea.style.display = 'block';
             rhArea.style.display = 'none';
             carregarMeusRegistros();
+            fetchAndDisplayNotifications();
         } else if (tipo === 'rh') {
             funcionarioArea.style.display = 'none';
             rhArea.style.display = 'block';
             carregarListaFuncionariosParaRH();
-            carregarSolicitacoesPendentes(); // Carrega solicitações para o RH
+            carregarCargosEDepartamentos(); // Chamada importante para o RH
+            carregarSolicitacoesPendentes(); 
         }
     }
 
     function showLoginView() {
         loginView.style.display = 'block';
         appView.style.display = 'none';
-        // Adiciona verificações para evitar erros se os elementos não existirem
         if (pontoStatus) pontoStatus.textContent = '';
         if (loginError) loginError.textContent = '';
         if (solicitacaoStatus) solicitacaoStatus.textContent = '';
@@ -106,6 +126,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (rhRelatorioStatus) rhRelatorioStatus.textContent = '';
         if (rhRelatorioResultado) rhRelatorioResultado.style.display = 'none';
         if (rhSolicitacaoStatus) rhSolicitacaoStatus.textContent = '';
+        if (notificacaoArea) notificacaoArea.style.display = 'none';
     }
 
     // --- Ações do Funcionário ---
@@ -135,6 +156,7 @@ document.addEventListener('DOMContentLoaded', () => {
             pontoStatus.style.color = 'var(--cor-sucesso)';
             pontoStatus.textContent = data.message;
             carregarMeusRegistros();
+            fetchAndDisplayNotifications(); // Verifica se há notificações após bater o ponto (opcional, mas bom)
         } catch (error) {
             pontoStatus.style.color = 'var(--cor-perigo)';
             pontoStatus.textContent = `Erro: ${error.message}`;
@@ -177,6 +199,81 @@ document.addEventListener('DOMContentLoaded', () => {
             listaRegistrosDiv.innerHTML = `<p style="color: var(--cor-perigo);">Erro ao carregar registros: ${error.message}</p>`;
         }
     }
+    
+    // Funções de Notificação para Funcionário (implementadas)
+    async function fetchAndDisplayNotifications() {
+        if (!notificacaoArea || localStorage.getItem('userType') !== 'funcionario') return;
+
+        const token = localStorage.getItem('token');
+        try {
+            const response = await fetch(`${API_URL}/ponto/notificacoes`, {
+                method: 'GET',
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const data = await response.json();
+            if (!response.ok) { throw new Error(data.message); }
+
+            if (data.notificacoes && data.notificacoes.length > 0) {
+                notificacaoArea.style.display = 'block';
+                notificacaoArea.innerHTML = '<h4>🔔 Suas Solicitações foram Processadas!</h4>';
+                
+                notificacaoArea.style.backgroundColor = 'var(--cor-aviso)';
+                notificacaoArea.style.borderColor = 'orange';
+
+                data.notificacoes.forEach(n => {
+                    const card = document.createElement('div');
+                    card.className = 'solicitacao-card'; 
+                    card.style.marginBottom = '10px';
+                    const isApproved = n.status_aprovacao === 'Aprovado';
+                    card.style.backgroundColor = isApproved ? 'var(--cor-sucesso)' : 'var(--cor-perigo)';
+                    card.style.color = 'white'; 
+                    card.style.padding = '10px';
+                    card.innerHTML = `
+                        <p>Sua solicitação de <strong>${n.tipo_solicitacao}</strong> foi <strong>${n.status_aprovacao.toUpperCase()}</strong>.</p>
+                        <p style="font-size: 0.8em; margin-bottom: 5px;">Justificativa: ${n.justificativa.substring(0, 50)}...</p>
+                        <button class="btn-marcar-vista" data-id="${n.id_solicitacao}">Marcar como Vista</button>
+                    `;
+                    notificacaoArea.appendChild(card);
+                });
+                
+                document.querySelectorAll('.btn-marcar-vista').forEach(btn => {
+                    btn.addEventListener('click', () => markNotificationAsSeen(btn.dataset.id));
+                });
+                
+            } else {
+                notificacaoArea.style.display = 'none';
+                notificacaoArea.innerHTML = '';
+            }
+
+        } catch (error) {
+            console.error('Erro ao buscar notificações:', error.message);
+            // Evita que erros persistentes bloqueiem a visualização
+            notificacaoArea.style.display = 'none'; 
+        }
+    }
+
+    async function markNotificationAsSeen(id_solicitacao) {
+        const token = localStorage.getItem('token');
+        try {
+            const response = await fetch(`${API_URL}/ponto/marcar-notificacao-vista`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({ id_solicitacao })
+            });
+            
+            if (!response.ok) {
+                const data = await response.json();
+                throw new Error(data.message);
+            }
+            fetchAndDisplayNotifications();
+        } catch (error) {
+            alert(`Erro ao marcar como vista: ${error.message}`);
+        }
+    }
+    // Fim Funções de Notificação
 
     // --- Ações do Funcionário (Enviar Solicitação) ---
     if (solicitacaoForm) {
@@ -249,6 +346,53 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // --- Ações do RH ---
+    
+    // Função para carregar Cargos e Departamentos (Corrigida com Token)
+    async function carregarCargosEDepartamentos() {
+        if (!regCargo || !regDepartamento) return;
+        const token = localStorage.getItem('token');
+        
+        regCargo.innerHTML = '<option value="">-- Carregando... --</option>';
+        regDepartamento.innerHTML = '<option value="">-- Carregando... --</option>';
+
+        try {
+            const response = await fetch(`${API_URL}/rh/cargos-departamentos`, {
+                method: 'GET',
+                // INCLUINDO O TOKEN AQUI
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const data = await response.json(); 
+            if (!response.ok) { 
+                const errorMessage = data.message || 'Erro ao carregar dados. Verifique seu login (RH).';
+                throw new Error(errorMessage); 
+            }
+
+            // 1. Preenche Cargos
+            regCargo.innerHTML = '<option value="">-- Selecione um Cargo --</option>';
+            data.cargos.forEach(cargo => {
+                const option = document.createElement('option');
+                option.value = cargo.id_cargo;
+                option.textContent = cargo.nome_cargo;
+                regCargo.appendChild(option);
+            });
+
+            // 2. Preenche Departamentos
+            regDepartamento.innerHTML = '<option value="">-- Selecione um Departamento --</option>';
+            data.departamentos.forEach(dept => {
+                const option = document.createElement('option');
+                option.value = dept.id_departamento;
+                option.textContent = dept.nome_departamento;
+                regDepartamento.appendChild(option);
+            });
+
+        } catch (error) {
+            const errorMessage = `Erro: ${error.message}`;
+            regCargo.innerHTML = `<option value="">${errorMessage}</option>`;
+            regDepartamento.innerHTML = `<option value="">${errorMessage}</option>`;
+        }
+    }
+    // FIM Função carregarCargosEDepartamentos
+
     if (registroFuncionarioForm) {
         registroFuncionarioForm.addEventListener('submit', async (e) => {
             e.preventDefault();
@@ -260,16 +404,28 @@ document.addEventListener('DOMContentLoaded', () => {
             const email = document.getElementById('reg_email').value;
             const senha = document.getElementById('reg_senha').value;
             const data_admissao = document.getElementById('reg_data_admissao').value;
+            // CORREÇÃO: Pegando os IDs de Cargo e Departamento
+            const id_cargo = regCargo.value; 
+            const id_departamento = regDepartamento.value;
+            
             const token = localStorage.getItem('token');
             try {
                 const response = await fetch(`${API_URL}/rh/registrar-funcionario`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
+                        // INCLUINDO O TOKEN AQUI
                         'Authorization': `Bearer ${token}`
                     },
                     body: JSON.stringify({
-                        nome_completo, cpf, email, senha, data_admissao
+                        nome_completo, 
+                        cpf, 
+                        email, 
+                        senha, 
+                        data_admissao,
+                        // CORREÇÃO: Enviando os IDs
+                        id_cargo: id_cargo || null, 
+                        id_departamento: id_departamento || null
                     })
                 });
                 const data = await response.json();
@@ -277,6 +433,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 rhStatus.style.color = 'var(--cor-sucesso)';
                 rhStatus.textContent = data.message;
                 registroFuncionarioForm.reset();
+                carregarListaFuncionariosParaRH(); 
+                carregarCargosEDepartamentos();
             } catch (error) {
                 rhStatus.style.color = 'var(--cor-perigo)';
                 rhStatus.textContent = `Erro: ${error.message}`;
@@ -292,10 +450,14 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const response = await fetch(`${API_URL}/rh/funcionarios`, {
                 method: 'GET',
+                // INCLUINDO O TOKEN AQUI
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             const data = await response.json();
-            if (!response.ok) { throw new Error(data.message); }
+            if (!response.ok) { 
+                const errorMessage = data.message || 'Erro ao carregar dados. Verifique seu login (RH).';
+                throw new Error(errorMessage);
+            }
 
             rhSelectFuncionario.innerHTML = '<option value="">-- Selecione um funcionário --</option>';
             if (data.funcionarios && data.funcionarios.length > 0) {
@@ -309,7 +471,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 rhSelectFuncionario.innerHTML = '<option value="">-- Nenhum funcionário cadastrado --</option>';
             }
         } catch (error) {
-            rhSelectFuncionario.innerHTML = `<option value="">-- Erro ao carregar --</option>`;
+            const errorMessage = `Erro: ${error.message}`;
+            rhSelectFuncionario.innerHTML = `<option value="">${errorMessage}</option>`;
         }
     }
 
@@ -332,9 +495,10 @@ document.addEventListener('DOMContentLoaded', () => {
             try {
                 const response = await fetch(`${API_URL}/rh/relatorio/${id_funcionario}`, {
                     method: 'GET',
+                    // INCLUINDO O TOKEN AQUI
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
-                const data = await response.json(); // Espera { pontos: [], entregas: [] }
+                const data = await response.json(); 
                 if (!response.ok) { throw new Error(data.message); }
 
                 // 1. Renderizar Registros de Ponto
@@ -392,26 +556,28 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const response = await fetch(`${API_URL}/rh/solicitacoes-pendentes`, {
                 method: 'GET',
+                // INCLUINDO O TOKEN AQUI
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             const data = await response.json();
-            if (!response.ok) { throw new Error(data.message); }
+            if (!response.ok) { 
+                const errorMessage = data.message || 'Erro ao carregar dados. Verifique seu login (RH).';
+                throw new Error(errorMessage);
+            }
 
-            rhSolicitacoesPendentes.innerHTML = ''; // Limpa a lista
+            rhSolicitacoesPendentes.innerHTML = ''; 
 
             if (data.solicitacoes && data.solicitacoes.length > 0) {
                 data.solicitacoes.forEach(s => {
                     const card = document.createElement('div');
                     card.className = 'solicitacao-card';
-                    card.id = `solicitacao-${s.id_solicitacao}`; // ID único para remover depois
+                    card.id = `solicitacao-${s.id_solicitacao}`; 
 
-                    // Formata a data
                     const dataHora = new Date(s.data_solicitacao);
                     const formatado = `${dataHora.toLocaleDateString('pt-BR')} ${dataHora.toLocaleTimeString('pt-BR')}`;
 
                     let anexoHTML = '';
                     if (s.anexo_atestado) {
-                        // Importante: target="_blank" abre o link em nova aba
                         anexoHTML = `<p><strong>Anexo:</strong> <a href="${s.anexo_atestado}" target="_blank" rel="noopener noreferrer">Ver Anexo</a></p>`;
                     }
 
@@ -429,7 +595,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     rhSolicitacoesPendentes.appendChild(card);
                 });
 
-                // Adiciona os event listeners para os novos botões
                 document.querySelectorAll('.btn-aprovar').forEach(btn => {
                     btn.addEventListener('click', () => processarSolicitacao(btn.dataset.id, 'Aprovado'));
                 });
@@ -466,9 +631,7 @@ document.addEventListener('DOMContentLoaded', () => {
             rhSolicitacaoStatus.style.color = 'var(--cor-sucesso)';
             rhSolicitacaoStatus.textContent = data.message;
             
-            // Recarrega a lista de pendentes (o item processado irá desaparecer)
             carregarSolicitacoesPendentes(); 
-
         } catch (error) {
             rhSolicitacaoStatus.style.color = 'var(--cor-perigo)';
             rhSolicitacaoStatus.textContent = `Erro: ${error.message}`;

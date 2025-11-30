@@ -7,8 +7,7 @@ const authMiddleware = require('./authMiddleware');
 
 const app = express();
 const port = 3000;
-const JWT_SECRET = 'seu-segredo-super-secreto-aqui'; 
-
+const JWT_SECRET = 'seu-segredo-super-secreto-aqui';
 app.use(cors());
 app.use(express.json());
 
