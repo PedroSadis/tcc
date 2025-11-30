@@ -5,22 +5,22 @@ const db = new sqlite3.Database('./ponto.db');
 db.serialize(() => {
     console.log("Iniciando banco de dados...");
 
-    // --- CRIAÇÃO DAS TABELAS ---
+    // --- CRIAÇÃO DAS TABELAS (COM CORREÇÃO PARA EVITAR DUPLICATAS) ---
 
-    // 1. Tabela Cargo
+    // 1. Tabela Cargo (Adicionei UNIQUE no nome_cargo)
     db.run(`CREATE TABLE IF NOT EXISTS Cargo (
         id_cargo INTEGER PRIMARY KEY AUTOINCREMENT,
-        nome_cargo TEXT NOT NULL,
+        nome_cargo TEXT NOT NULL UNIQUE,
         descricao TEXT
     )`);
 
-    // 2. Tabela Departamento
+    // 2. Tabela Departamento (Adicionei UNIQUE no nome_departamento)
     db.run(`CREATE TABLE IF NOT EXISTS Departamento (
         id_departamento INTEGER PRIMARY KEY AUTOINCREMENT,
-        nome_departamento TEXT NOT NULL
+        nome_departamento TEXT NOT NULL UNIQUE
     )`);
 
-    // 3. Tabela Funcionario
+    // 3. Tabela Funcionario (Mantida)
     db.run(`CREATE TABLE IF NOT EXISTS Funcionario (
         id_funcionario INTEGER PRIMARY KEY AUTOINCREMENT,
         nome_completo TEXT NOT NULL,
@@ -35,7 +35,7 @@ db.serialize(() => {
         FOREIGN KEY (id_departamento) REFERENCES Departamento(id_departamento)
     )`);
 
-    // 4. Tabela RegistroPonto
+    // 4. Tabela RegistroPonto (Mantida)
     db.run(`CREATE TABLE IF NOT EXISTS RegistroPonto (
         id_registro_ponto INTEGER PRIMARY KEY AUTOINCREMENT,
         id_funcionario INTEGER NOT NULL,
@@ -45,7 +45,7 @@ db.serialize(() => {
         FOREIGN KEY (id_funcionario) REFERENCES Funcionario(id_funcionario)
     )`);
 
-    // 5. Tabela Entrega
+    // 5. Tabela Entrega (Mantida)
     db.run(`CREATE TABLE IF NOT EXISTS Entrega (
         id_entrega INTEGER PRIMARY KEY AUTOINCREMENT,
         id_funcionario INTEGER NOT NULL,
@@ -56,7 +56,7 @@ db.serialize(() => {
         FOREIGN KEY (id_funcionario) REFERENCES Funcionario(id_funcionario)
     )`);
 
-    // 6. Tabela UsuarioRH
+    // 6. Tabela UsuarioRH (Mantida)
     db.run(`CREATE TABLE IF NOT EXISTS UsuarioRH (
         id_usuario_rh INTEGER PRIMARY KEY AUTOINCREMENT,
         nome TEXT NOT NULL,
@@ -65,7 +65,7 @@ db.serialize(() => {
         nivel_permissao TEXT NOT NULL
     )`);
 
-    // 7. Tabela SolicitacaoAjuste
+    // 7. Tabela SolicitacaoAjuste (Mantida)
     db.run(`CREATE TABLE IF NOT EXISTS SolicitacaoAjuste (
         id_solicitacao INTEGER PRIMARY KEY AUTOINCREMENT,
         id_funcionario INTEGER NOT NULL,
@@ -75,23 +75,14 @@ db.serialize(() => {
         justificativa TEXT NOT NULL,
         anexo_atestado TEXT,
         status_aprovacao TEXT NOT NULL,
+        visto_pelo_funcionario INTEGER DEFAULT 0,
         FOREIGN KEY (id_funcionario) REFERENCES Funcionario(id_funcionario),
         FOREIGN KEY (id_usuario_rh_aprovador) REFERENCES UsuarioRH(id_usuario_rh)
     )`);
 
-    // --- ATUALIZAÇÕES DA TABELA (ALTER TABLE) ---
-    // Adiciona a coluna de notificação, se ela não existir
-    db.run("ALTER TABLE SolicitacaoAjuste ADD COLUMN visto_pelo_funcionario INTEGER DEFAULT 0", (err) => {
-        if (err && err.message.includes('duplicate column name')) {
-            // A coluna já existe, o que é normal.
-        } else if (err) {
-            console.error("Erro ao adicionar coluna 'visto_pelo_funcionario':", err.message);
-        }
-    });
-
     // --- DADOS INICIAIS (SEED) ---
     
-    // Inserir Cargos
+    // Inserir Cargos (Agora o 'INSERT OR IGNORE' funciona corretamente porque existe a restrição UNIQUE)
     db.run(`INSERT OR IGNORE INTO Cargo (nome_cargo) VALUES ('Motorista'), ('Analista de RH'), ('Desenvolvedor'), ('Gerente de Vendas')`);
     
     // Inserir Departamentos

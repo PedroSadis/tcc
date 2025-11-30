@@ -13,7 +13,11 @@ function authMiddleware(req, res, next) {
         if (err) {
             return res.status(403).json({ message: 'Token inválido.' });
         }
-        req.user = user; // Salva os dados do usuário (do token) na requisição
+        req.user = user; 
+        
+        console.log('Usuário autenticado:', req.user);
+
+        // Salva os dados do usuário (do token) na requisição
         next(); // Passa para a próxima rota
     });
 }

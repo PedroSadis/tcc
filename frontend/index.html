@@ -105,6 +105,67 @@
             <p id="rh-status"></p>
 
             <hr>
+            <h4>Lançamento Manual de Ponto</h4>
+            <form id="rhLancamentoManualForm" style="background: #f1f1f1; padding: 15px; border-radius: 8px;">
+                <label>Funcionário:</label>
+                <select id="rh_manual_funcionario" required>
+                    <option value="">Carregando...</option>
+                </select>
+
+                <div style="display: flex; gap: 10px;">
+                    <div style="flex: 1;">
+                        <label>Data:</label>
+                        <input type="date" id="rh_manual_data" required>
+                    </div>
+                    <div style="flex: 1;">
+                        <label>Hora:</label>
+                        <input type="time" id="rh_manual_hora" required>
+                    </div>
+                </div>
+
+                <label>Tipo:</label>
+                <select id="rh_manual_tipo" required>
+                    <option value="Entrada">Entrada</option>
+                    <option value="Saida">Saída</option>
+                </select>
+
+                <label>Justificativa (RH):</label>
+                <input type="text" id="rh_manual_justificativa" placeholder="Ex: Esqueceu de bater">
+
+                <button type="submit" style="background-color: var(--cor-aviso); color: #000;">Lançar Manualmente</button>
+            </form>
+            <p id="rh-manual-status"></p>
+            ```
+
+E no final do arquivo, **antes** de fechar a tag `</body>`, adicione este modal de edição:
+
+```html
+    <div id="modal-editar-ponto" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); align-items: center; justify-content: center;">
+        <div style="background: white; padding: 20px; border-radius: 8px; width: 300px; box-shadow: 0 4px 15px rgba(0,0,0,0.2);">
+            <h3>Editar Ponto</h3>
+            <input type="hidden" id="edit_id_ponto">
+            
+            <label>Data:</label>
+            <input type="date" id="edit_data" style="width: 100%; margin-bottom: 10px;">
+            
+            <label>Hora:</label>
+            <input type="time" id="edit_hora" style="width: 100%; margin-bottom: 10px;">
+            
+            <label>Tipo:</label>
+            <select id="edit_tipo" style="width: 100%; margin-bottom: 15px;">
+                <option value="Entrada">Entrada</option>
+                <option value="Saida">Saída</option>
+            </select>
+
+            <div style="display: flex; justify-content: space-between;">
+                <button id="btn-cancelar-edit" style="background: #ccc; color: #333; width: 45%;">Cancelar</button>
+                <button id="btn-salvar-edit" style="background: var(--cor-primaria); width: 45%;">Salvar</button>
+            </div>
+            <button id="btn-excluir-ponto" style="background: var(--cor-perigo); margin-top: 10px;">Excluir Registro</button>
+        </div>
+    </div>
+
+            <hr>
             <h4>Gerar Relatório de Funcionário</h4>
             
             <label for="rh_select_funcionario">Selecione um Funcionário:</label>

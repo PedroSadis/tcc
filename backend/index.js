@@ -284,20 +284,16 @@ app.get('/rh/relatorio/:id_funcionario', authMiddleware, (req, res) => {
     }
 
     const id_funcionario = req.params.id_funcionario;
-    const relatorio = {
-        pontos: [],
-        entregas: []
-    };
+    const relatorio = { pontos: [], entregas: [] };
 
-    const sql_pontos = `SELECT data_hora, tipo_registro 
+    // ADICIONEI 'id_registro_ponto' NO SELECT ABAIXO:
+    const sql_pontos = `SELECT id_registro_ponto, data_hora, tipo_registro 
                         FROM RegistroPonto 
                         WHERE id_funcionario = ? 
                         ORDER BY data_hora DESC`;
     
     db.all(sql_pontos, [id_funcionario], (err, rowsPontos) => {
-        if (err) {
-            return res.status(500).json({ message: 'Erro ao buscar registros de ponto.' });
-        }
+        if (err) { return res.status(500).json({ message: 'Erro ao buscar registros de ponto.' }); }
         relatorio.pontos = rowsPontos;
 
         const sql_entregas = `SELECT data_hora_entrega, descricao_mercadoria, numero_nota_fiscal 
@@ -306,9 +302,7 @@ app.get('/rh/relatorio/:id_funcionario', authMiddleware, (req, res) => {
                               ORDER BY data_hora_entrega DESC`;
         
         db.all(sql_entregas, [id_funcionario], (err, rowsEntregas) => {
-            if (err) {
-                return res.status(500).json({ message: 'Erro ao buscar entregas.' });
-            }
+            if (err) { return res.status(500).json({ message: 'Erro ao buscar entregas.' }); }
             relatorio.entregas = rowsEntregas;
             res.json(relatorio);
         });
@@ -378,6 +372,57 @@ app.post('/rh/processar-solicitacao', authMiddleware, (req, res) => {
     });
 });
 
+// --- Rota de RH: Lançamento Manual de Ponto ---
+app.post('/rh/ponto/manual', authMiddleware, (req, res) => {
+    if (req.user.tipo !== 'rh') {
+         return res.status(403).json({ message: 'Acesso negado.' });
+    }
+    
+    const { id_funcionario, data, hora, tipo_registro, justificativa } = req.body;
+
+    if (!id_funcionario || !data || !hora || !tipo_registro) {
+        return res.status(400).json({ message: 'Todos os campos são obrigatórios.' });
+    }
+
+    // Combina data e hora para formato ISO
+    const data_hora = new Date(`${data}T${hora}:00`).toISOString();
+
+    const sql = `INSERT INTO RegistroPonto (id_funcionario, data_hora, tipo_registro, justificativa) VALUES (?, ?, ?, ?)`;
+    
+    db.run(sql, [id_funcionario, data_hora, tipo_registro, justificativa || 'Lançamento Manual RH'], function(err) {
+        if (err) { return res.status(500).json({ message: 'Erro ao lançar ponto.' }); }
+        res.status(201).json({ message: 'Ponto lançado com sucesso!' });
+    });
+});
+
+// --- Rota de RH: Editar Ponto Existente ---
+app.put('/rh/ponto/:id', authMiddleware, (req, res) => {
+    if (req.user.tipo !== 'rh') {
+         return res.status(403).json({ message: 'Acesso negado.' });
+    }
+
+    const id_registro_ponto = req.params.id;
+    const { data, hora, tipo_registro } = req.body;
+
+    const data_hora = new Date(`${data}T${hora}:00`).toISOString();
+
+    const sql = `UPDATE RegistroPonto SET data_hora = ?, tipo_registro = ? WHERE id_registro_ponto = ?`;
+
+    db.run(sql, [data_hora, tipo_registro, id_registro_ponto], function(err) {
+        if (err) { return res.status(500).json({ message: 'Erro ao atualizar ponto.' }); }
+        res.json({ message: 'Registro atualizado com sucesso!' });
+    });
+});
+
+// --- Rota de RH: Excluir Ponto (Opcional, mas útil) ---
+app.delete('/rh/ponto/:id', authMiddleware, (req, res) => {
+    if (req.user.tipo !== 'rh') { return res.status(403).json({ message: 'Acesso negado.' }); }
+    
+    db.run(`DELETE FROM RegistroPonto WHERE id_registro_ponto = ?`, [req.params.id], function(err) {
+        if (err) { return res.status(500).json({ message: 'Erro ao excluir.' }); }
+        res.json({ message: 'Registro excluído.' });
+    });
+});
 
 // --- Início do Servidor ---
 app.listen(port, () => {
