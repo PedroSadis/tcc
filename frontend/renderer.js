@@ -144,6 +144,24 @@ async function updateAppState() {
         }
     };
 }
+// Trecho da função de Login
+fetch('http://localhost:3000/login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, senha })
+})
+.then(response => response.json())
+.then(data => {
+    if (data.token) {
+        // --- ESTA É A LINHA IMPORTANTE ---
+        localStorage.setItem('token', data.token); // Salva o crachá no bolso
+        localStorage.setItem('usuario', JSON.stringify(data.usuario)); // Salva dados do user
+        // ---------------------------------
+        window.location.href = 'dashboard.html';
+    } else {
+        alert('Login falhou: ' + data.message);
+    }
+});
 
 // Inicializa o estado da aplicação
 updateAppState();
